@@ -568,6 +568,7 @@ static const struct qcom_cc_desc disp_cc_sm6375_desc = {
 };
 
 static const struct of_device_id disp_cc_sm6375_match_table[] = {
+	{ .compatible = "qcom,sm6225-dispcc" },
 	{ .compatible = "qcom,sm6375-dispcc" },
 	{ }
 };
@@ -582,6 +583,11 @@ static int disp_cc_sm6375_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	clk_lucid_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
+
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sm6225-dispcc")) {
+		regmap_update_bits(regmap, 0x5004, BIT(0), BIT(0));
+		regmap_update_bits(regmap, 0x5008, BIT(0), BIT(0));
+	}
 
 	return qcom_cc_really_probe(&pdev->dev, &disp_cc_sm6375_desc, regmap);
 }
