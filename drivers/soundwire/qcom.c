@@ -1819,7 +1819,8 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 		qcom_swrm_get_device_status(ctrl);
 		sdw_handle_slave_status(&ctrl->bus, ctrl->status);
 	} else {
-		reset_control_reset(ctrl->audio_cgcr);
+		/* Restore the manager state cleared by the clock-gating reset. */
+		qcom_swrm_init(ctrl);
 
 		if (ctrl->version == SWRM_VERSION_1_7_0) {
 			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, ctrl->ee);
