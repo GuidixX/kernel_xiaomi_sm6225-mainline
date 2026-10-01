@@ -28,6 +28,7 @@
 #define ASM_SESSION_CMD_PAUSE			0x00010BD3
 #define ASM_DATA_CMD_EOS			0x00010BDB
 #define ASM_DATA_EVENT_RENDERED_EOS		0x00010C1C
+#define ASM_DEFAULT_POPP_TOPOLOGY		0x00010BE4
 #define ASM_NULL_POPP_TOPOLOGY			0x00010C68
 #define ASM_STREAM_CMD_FLUSH_READBUFS		0x00010C09
 #define ASM_STREAM_CMD_SET_ENCDEC_PARAM		0x00010C10
@@ -40,6 +41,7 @@
 #define ASM_PARAM_ID_ENCDEC_ENC_CFG_BLK_V2	0x00010DA3
 #define ASM_SESSION_CMD_RUN_V2			0x00010DAA
 #define ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V2	0x00010DA5
+#define ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V5	0x00013222
 #define ASM_MEDIA_FMT_MP3			0x00010BE9
 #define ASM_MEDIA_FMT_FLAC			0x00010C16
 #define ASM_MEDIA_FMT_WMA_V9			0x00010DA8
@@ -97,6 +99,23 @@ struct asm_multi_channel_pcm_fmt_blk_v2 {
 	u16 is_signed;
 	u16 reserved;
 	u8 channel_mapping[PCM_MAX_NUM_CHANNEL];
+} __packed;
+
+struct asm_multi_channel_pcm_fmt_blk_v5 {
+	u16 num_channels;
+	u16 bits_per_sample;
+	u32 sample_rate;
+	u16 is_signed;
+	u16 sample_word_size;
+	u16 endianness;
+	u16 mode;
+	u8 channel_mapping[32];
+} __packed;
+
+struct asm_multi_channel_pcm_fmt_blk_param_v5 {
+	struct apr_hdr hdr;
+	struct asm_data_cmd_media_fmt_update_v2 fmt_blk;
+	struct asm_multi_channel_pcm_fmt_blk_v5 param;
 } __packed;
 
 struct asm_flac_fmt_blk_v2 {
@@ -189,6 +208,21 @@ struct asm_multi_channel_pcm_enc_cfg_v2 {
 	uint16_t  is_signed;
 	uint16_t  reserved;
 	uint8_t   channel_mapping[8];
+} __packed;
+
+/* PCM encoder configuration for the SM6225 DSP firmware. */
+struct asm_multi_channel_pcm_enc_cfg_v5 {
+	struct apr_hdr hdr;
+	struct asm_stream_cmd_set_encdec_param encdec;
+	struct asm_enc_cfg_blk_param_v2 encblk;
+	uint16_t num_channels;
+	uint16_t bits_per_sample;
+	uint32_t sample_rate;
+	uint16_t is_signed;
+	uint16_t sample_word_size;
+	uint16_t endianness;
+	uint16_t mode;
+	uint8_t channel_mapping[32];
 } __packed;
 
 struct asm_data_cmd_read_v2 {
@@ -948,14 +982,17 @@ int q6asm_open_write(struct audio_client *ac, uint32_t stream_id,
 	/* source endpoint : matrix */
 	open->sink_endpointype = ASM_END_POINT_DEVICE_MATRIX;
 	open->bits_per_sample = bits_per_sample;
-	open->postprocopo_id = ASM_NULL_POPP_TOPOLOGY;
+	open->postprocopo_id = of_machine_is_compatible("qcom,sm6225") ?
+		ASM_DEFAULT_POPP_TOPOLOGY : ASM_NULL_POPP_TOPOLOGY;
 
 	switch (format) {
 	case SND_AUDIOCODEC_MP3:
 		open->dec_fmt_id = ASM_MEDIA_FMT_MP3;
 		break;
 	case FORMAT_LINEAR_PCM:
-		open->dec_fmt_id = ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V2;
+		open->dec_fmt_id = of_machine_is_compatible("qcom,sm6225") ?
+			ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V5 :
+			ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V2;
 		break;
 	case SND_AUDIOCODEC_FLAC:
 		open->dec_fmt_id = ASM_MEDIA_FMT_FLAC;
@@ -1081,7 +1118,7 @@ EXPORT_SYMBOL_GPL(q6asm_run_nowait);
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_media_format_block_multi_ch_pcm(struct audio_client *ac,
+static int q6asm_media_format_block_multi_ch_pcm_v2(struct audio_client *ac,
 					  uint32_t stream_id,
 					  uint32_t rate, uint32_t channels,
 					  u8 channel_map[PCM_MAX_NUM_CHANNEL],
@@ -1120,6 +1157,67 @@ int q6asm_media_format_block_multi_ch_pcm(struct audio_client *ac,
 	}
 
 	return q6asm_ac_send_cmd_sync(ac, pkt);
+}
+
+static int q6asm_media_format_block_multi_ch_pcm_v5(struct audio_client *ac,
+					  uint32_t stream_id,
+					  uint32_t rate, uint32_t channels,
+					  u8 channel_map[PCM_MAX_NUM_CHANNEL],
+					  uint16_t bits_per_sample)
+{
+	struct asm_multi_channel_pcm_fmt_blk_param_v5 *fmt;
+	u8 *channel_mapping;
+	u8 ch_map_8[PCM_MAX_NUM_CHANNEL];
+	int pkt_size = sizeof(*fmt);
+
+	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	fmt = p;
+
+	q6asm_add_hdr(ac, &fmt->hdr, pkt_size, true, stream_id);
+
+	fmt->hdr.opcode = ASM_DATA_CMD_MEDIA_FMT_UPDATE_V2;
+	fmt->fmt_blk.fmt_blk_size = sizeof(*fmt) - sizeof(fmt->hdr) -
+				    sizeof(fmt->fmt_blk);
+	fmt->param.num_channels = channels;
+	fmt->param.bits_per_sample = bits_per_sample;
+	fmt->param.sample_rate = rate;
+	fmt->param.is_signed = 1;
+	fmt->param.sample_word_size = bits_per_sample;
+	fmt->param.endianness = 0;
+	fmt->param.mode = 0;
+
+	memset(fmt->param.channel_mapping, 0,
+	       sizeof(fmt->param.channel_mapping));
+	channel_mapping = fmt->param.channel_mapping;
+
+	if (channel_map) {
+		memcpy(channel_mapping, channel_map, PCM_MAX_NUM_CHANNEL);
+	} else {
+		if (q6dsp_map_channels(ch_map_8, channels)) {
+			dev_err(ac->dev, " map channels failed %d\n", channels);
+			return -EINVAL;
+		}
+		memcpy(channel_mapping, ch_map_8, PCM_MAX_NUM_CHANNEL);
+	}
+
+	return q6asm_ac_send_cmd_sync(ac, (struct apr_pkt *)fmt);
+}
+
+int q6asm_media_format_block_multi_ch_pcm(struct audio_client *ac,
+					  uint32_t stream_id,
+					  uint32_t rate, uint32_t channels,
+					  u8 channel_map[PCM_MAX_NUM_CHANNEL],
+					  uint16_t bits_per_sample)
+{
+	if (of_machine_is_compatible("qcom,sm6225"))
+		return q6asm_media_format_block_multi_ch_pcm_v5(ac, stream_id,
+				rate, channels, channel_map, bits_per_sample);
+
+	return q6asm_media_format_block_multi_ch_pcm_v2(ac, stream_id, rate,
+			channels, channel_map, bits_per_sample);
 }
 EXPORT_SYMBOL_GPL(q6asm_media_format_block_multi_ch_pcm);
 
@@ -1350,7 +1448,7 @@ EXPORT_SYMBOL_GPL(q6asm_stream_remove_trailing_silence);
  *
  * Return: Will be an negative value on error or zero on success
  */
-int q6asm_enc_cfg_blk_pcm_format_support(struct audio_client *ac,
+static int q6asm_enc_cfg_blk_pcm_format_support_v2(struct audio_client *ac,
 					 uint32_t stream_id, uint32_t rate,
 					 uint32_t channels,
 					 uint16_t bits_per_sample)
@@ -1386,6 +1484,62 @@ int q6asm_enc_cfg_blk_pcm_format_support(struct audio_client *ac,
 		return -EINVAL;
 
 	return q6asm_ac_send_cmd_sync(ac, pkt);
+}
+
+static int q6asm_enc_cfg_blk_pcm_format_support_v5(struct audio_client *ac,
+					 uint32_t stream_id, uint32_t rate,
+					 uint32_t channels,
+					 uint16_t bits_per_sample)
+{
+	struct asm_multi_channel_pcm_enc_cfg_v5  *enc_cfg;
+	u8 *channel_mapping;
+	u8 ch_map_8[PCM_MAX_NUM_CHANNEL];
+	u32 frames_per_buf = 0;
+	int pkt_size = sizeof(*enc_cfg);
+
+	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	enc_cfg = p;
+	q6asm_add_hdr(ac, &enc_cfg->hdr, pkt_size, true, stream_id);
+
+	enc_cfg->hdr.opcode = ASM_STREAM_CMD_SET_ENCDEC_PARAM;
+	enc_cfg->encdec.param_id = ASM_PARAM_ID_ENCDEC_ENC_CFG_BLK_V2;
+	enc_cfg->encdec.param_size = sizeof(*enc_cfg) - sizeof(enc_cfg->hdr) -
+					sizeof(enc_cfg->encdec);
+	enc_cfg->encblk.frames_per_buf = frames_per_buf;
+	enc_cfg->encblk.enc_cfg_blk_size  = enc_cfg->encdec.param_size -
+					sizeof(struct asm_enc_cfg_blk_param_v2);
+
+	enc_cfg->num_channels = channels;
+	enc_cfg->bits_per_sample = bits_per_sample;
+	enc_cfg->sample_rate = rate;
+	enc_cfg->is_signed = 1;
+	enc_cfg->sample_word_size = bits_per_sample;
+	enc_cfg->endianness = 0;
+	enc_cfg->mode = 0;
+	channel_mapping = enc_cfg->channel_mapping;
+
+	memset(channel_mapping, 0, 32);
+	if (q6dsp_map_channels(ch_map_8, channels))
+		return -EINVAL;
+	memcpy(channel_mapping, ch_map_8, PCM_MAX_NUM_CHANNEL);
+
+	return q6asm_ac_send_cmd_sync(ac, (struct apr_pkt *)enc_cfg);
+}
+
+int q6asm_enc_cfg_blk_pcm_format_support(struct audio_client *ac,
+					 uint32_t stream_id, uint32_t rate,
+					 uint32_t channels,
+					 uint16_t bits_per_sample)
+{
+	if (of_machine_is_compatible("qcom,sm6225"))
+		return q6asm_enc_cfg_blk_pcm_format_support_v5(ac, stream_id,
+				rate, channels, bits_per_sample);
+
+	return q6asm_enc_cfg_blk_pcm_format_support_v2(ac, stream_id,
+			rate, channels, bits_per_sample);
 }
 EXPORT_SYMBOL_GPL(q6asm_enc_cfg_blk_pcm_format_support);
 
@@ -1473,7 +1627,9 @@ static int __q6asm_open_read(struct audio_client *ac, uint32_t stream_id,
 	switch (format) {
 	case FORMAT_LINEAR_PCM:
 		open->mode_flags |= 0x00;
-		open->enc_cfg_id = ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V2;
+		open->enc_cfg_id = of_machine_is_compatible("qcom,sm6225") ?
+			ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V5 :
+			ASM_MEDIA_FMT_MULTI_CHANNEL_PCM_V2;
 		break;
 	default:
 		pr_err("Invalid format[%d]\n", format);
