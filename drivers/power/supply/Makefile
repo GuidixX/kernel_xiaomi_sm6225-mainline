@@ -139,3 +139,4 @@ obj-$(CONFIG_FUEL_GAUGE_SM5602)	+= sm5602_fg.o
 obj-$(CONFIG_CHARGER_SC8551)	+= sc8551_charger.o
 obj-$(CONFIG_PMIC_VOTER)	+= pmic-voter.o
 obj-y				+= battery_secret/
+obj-y				+= nopmi/

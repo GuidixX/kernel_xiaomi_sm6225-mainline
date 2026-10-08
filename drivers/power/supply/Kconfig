@@ -1222,6 +1222,8 @@ config CHARGER_SC8551
 
 source "drivers/power/supply/battery_secret/Kconfig"
 
+source "drivers/power/supply/nopmi/Kconfig"
+
 config PMIC_VOTER
 	bool
 	help
