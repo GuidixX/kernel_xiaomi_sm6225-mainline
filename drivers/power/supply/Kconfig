@@ -1211,6 +1211,15 @@ config FUEL_GAUGE_SM5602
 	  The Fuel Gauge calculates and determines the battery state of charge
 	  according to battery open circuit voltage.
 
+config CHARGER_SC8551
+	tristate "Southchip SC8551 divider charger"
+	depends on I2C
+	help
+	  Say Y here to enable the Southchip SC8551 switched-capacitor
+	  divider charger driver, used on Xiaomi SM6225 boards (spes
+	  family) for high-power direct charging alongside the main
+	  buck charger.
+
 source "drivers/power/supply/battery_secret/Kconfig"
 
 config PMIC_VOTER
