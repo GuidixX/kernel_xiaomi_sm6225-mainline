@@ -1203,6 +1203,14 @@ config MACSMC_POWER
 
 	  Say Y or M here if you have an Apple Silicon based Mac.
 
+config FUEL_GAUGE_SM5602
+	tristate "SM5602 Fuel Gauge Driver"
+	depends on I2C
+	help
+	  Say Y here to enable the SM5602 Fuel Gauge Driver.
+	  The Fuel Gauge calculates and determines the battery state of charge
+	  according to battery open circuit voltage.
+
 config PMIC_VOTER
 	bool
 	help
