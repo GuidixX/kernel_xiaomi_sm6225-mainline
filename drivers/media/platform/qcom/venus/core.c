@@ -1226,7 +1226,6 @@ static const struct venus_resources qcm2290_res = {
 	.fwname = "qcom/venus-6.0/venus.mbn",
 	.dec_nodename = "video-decoder",
 	.enc_nodename = "video-encoder",
-	.min_fw = &min_fw,
 };
 #endif
 
