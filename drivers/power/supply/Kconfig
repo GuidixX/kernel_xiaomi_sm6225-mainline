@@ -1211,6 +1211,8 @@ config FUEL_GAUGE_SM5602
 	  The Fuel Gauge calculates and determines the battery state of charge
 	  according to battery open circuit voltage.
 
+source "drivers/power/supply/battery_secret/Kconfig"
+
 config PMIC_VOTER
 	bool
 	help

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Xiaomi battery authentication (Maxim DS28E16 over GPIO 1-wire).
+# Ported from downstream (Redmi Note 11 / SM6225).
+
+config ONEWIRE_GPIO
+	bool "Xiaomi 1-wire GPIO bit-bang controller"
+	help
+	  Bit-banged 1-wire master over a TLMM GPIO, used to talk to
+	  the battery authentication IC. Provides the low-level
+	  ow_reset()/read_byte()/write_byte() symbols.
+
