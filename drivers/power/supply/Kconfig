@@ -1203,4 +1203,11 @@ config MACSMC_POWER
 
 	  Say Y or M here if you have an Apple Silicon based Mac.
 
+config PMIC_VOTER
+	bool
+	help
+	  Qualcomm pmic-voter election library (MIN/MAX/SET_ANY), used
+	  by the Xiaomi nopmi charger policy driver. Selected
+	  automatically, no prompt.
+
 endif # POWER_SUPPLY
