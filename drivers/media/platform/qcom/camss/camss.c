@@ -8,6 +8,7 @@
  * Copyright (C) 2015-2018 Linaro Ltd.
  */
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/interconnect.h>
 #include <linux/media-bus-format.h>
 #include <linux/media.h>
@@ -19,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_clock.h>
+#include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
@@ -1690,6 +1692,198 @@ static const struct resources_icc icc_res_sm6150[] = {
 		.name = "hf_0",
 		.icc_bw_tbl.avg = 2097152,
 		.icc_bw_tbl.peak = 2097152,
+	},
+};
+
+static const struct camss_subdev_resources csiphy_res_sm6225[] = {
+	/* CSIPHY0 */
+	{
+		.regulators = {
+			{ .supply = "vdd-csiphy-1p2", .init_load_uA = 26700 },
+			{ .supply = "vdd-csiphy-1p8", .init_load_uA = 2600 }
+		},
+		.clock = { "top_ahb", "ahb", "csiphy0", "csiphy0_timer" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 240000000, 341330000, 384000000 },
+				{ 100000000, 200000000, 268800000 } },
+		.reg = { "csiphy0" },
+		.interrupt = { "csiphy0" },
+		.csiphy = {
+			.id = 0,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+	/* CSIPHY1 */
+	{
+		.regulators = {
+			{ .supply = "vdd-csiphy-1p2", .init_load_uA = 26700 },
+			{ .supply = "vdd-csiphy-1p8", .init_load_uA = 2600 }
+		},
+		.clock = { "top_ahb", "ahb", "csiphy1", "csiphy1_timer" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 240000000, 341330000, 384000000 },
+				{ 100000000, 200000000, 268800000 } },
+		.reg = { "csiphy1" },
+		.interrupt = { "csiphy1" },
+		.csiphy = {
+			.id = 1,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+	/* CSIPHY2 */
+	{
+		.regulators = {
+			{ .supply = "vdd-csiphy-1p2", .init_load_uA = 26700 },
+			{ .supply = "vdd-csiphy-1p8", .init_load_uA = 2600 }
+		},
+		.clock = { "top_ahb", "ahb", "csiphy2", "csiphy2_timer" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 240000000, 341330000, 384000000 },
+				{ 100000000, 200000000, 268800000 } },
+		.reg = { "csiphy2" },
+		.interrupt = { "csiphy2" },
+		.csiphy = {
+			.id = 2,
+			.hw_ops = &csiphy_ops_3ph_1_0,
+			.formats = &csiphy_formats_sdm845
+		}
+	},
+};
+
+static const struct camss_subdev_resources csid_res_sm6225[] = {
+	/* CSID0 */
+	{
+		.regulators = {},
+		.clock = { "top_ahb", "ahb", "csi0", "vfe0_cphy_rx", "vfe0" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 192000000, 240000000, 384000000, 426400000 },
+				{ 0 },
+				{ 0 } },
+		.reg = { "csid0" },
+		.interrupt = { "csid0" },
+		.csid = {
+			.hw_ops = &csid_ops_340,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID1 */
+	{
+		.regulators = {},
+		.clock = { "top_ahb", "ahb", "csi1", "vfe1_cphy_rx", "vfe1" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 192000000, 240000000, 384000000, 426400000 },
+				{ 0 },
+				{ 0 } },
+		.reg = { "csid1" },
+		.interrupt = { "csid1" },
+		.csid = {
+			.hw_ops = &csid_ops_340,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID2 */
+	{
+		.regulators = {},
+		.clock = { "top_ahb", "ahb", "csi2", "vfe2_cphy_rx", "vfe2" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 192000000, 240000000, 384000000, 426400000 },
+				{ 0 },
+				{ 0 } },
+		.reg = { "csid2" },
+		.interrupt = { "csid2" },
+		.csid = {
+			.hw_ops = &csid_ops_340,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.formats = &csid_formats_gen2
+		}
+	},
+};
+
+static const struct camss_subdev_resources vfe_res_sm6225[] = {
+	/* VFE0 */
+	{
+		.regulators = {},
+		.clock = { "top_ahb", "ahb", "axi", "vfe0", "camnoc_rt_axi", "camnoc_nrt_axi" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 0 },
+				{ 19200000, 153600000, 192000000, 256000000, 384000000, 460800000 },
+				{ 0 },
+				{ 0 } },
+		.reg = { "vfe0" },
+		.interrupt = { "vfe0" },
+		.vfe = {
+			.line_num = 4,
+			.hw_ops = &vfe_ops_340,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
+		}
+	},
+	/* VFE1 */
+	{
+		.regulators = {},
+		.clock = { "top_ahb", "ahb", "axi", "vfe1", "camnoc_rt_axi", "camnoc_nrt_axi" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 0 },
+				{ 19200000, 153600000, 192000000, 256000000, 384000000, 460800000 },
+				{ 0 },
+				{ 0 } },
+		.reg = { "vfe1" },
+		.interrupt = { "vfe1" },
+		.vfe = {
+			.line_num = 4,
+			.hw_ops = &vfe_ops_340,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
+		}
+	},
+	/* VFE2 */
+	{
+		.regulators = {},
+		.clock = { "top_ahb", "ahb", "axi", "vfe2", "camnoc_rt_axi", "camnoc_nrt_axi" },
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 0 },
+				{ 19200000, 153600000, 192000000, 256000000, 384000000, 460800000 },
+				{ 0 },
+				{ 0 } },
+		.reg = { "vfe2" },
+		.interrupt = { "vfe2" },
+		.vfe = {
+			.line_num = 4,
+			.hw_ops = &vfe_ops_340,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
+		}
+	},
+};
+
+static const struct resources_icc icc_res_sm6225[] = {
+	{
+		.name = "ahb",
+		.icc_bw_tbl.avg = 150000,
+		.icc_bw_tbl.peak = 300000,
+	},
+	{
+		.name = "hf_mnoc",
+		.icc_bw_tbl.avg = 2097152,
+		.icc_bw_tbl.peak = 3000000,
+	},
+	{
+		.name = "sf_mnoc",
+		.icc_bw_tbl.avg = 2097152,
+		.icc_bw_tbl.peak = 3000000,
 	},
 };
 
@@ -5371,6 +5565,64 @@ static void camss_genpd_cleanup(struct camss *camss)
 	dev_pm_domain_detach(camss->genpd, true);
 }
 
+static const char * const camss_opp_pd_names[] = { "mx", "cx" };
+
+/* Highest TFE rate the VFE tables can request. The vote is flat (not
+ * per-rate): GPLL10 is fixed at 1152 MHz and needs MX above its LOW
+ * corner whenever camera is active, and the TFE RCG logic needs CX at
+ * LOW_L1 for top rates (per the vendor corner tables) while nothing
+ * else votes either rail for camera on this platform. */
+#define CAMSS_OPP_VOTE_HZ 460800000
+
+/*
+ * camss_opp_init - Attach the MX/CX power domains and OPP table
+ *
+ * The TFE RCGs are fed by GPLL10, whose VCO needs the MX rail above
+ * its LOW corner (vendor: LOW_L1 for 1152 MHz), and the TFE RCG logic
+ * itself needs CX at LOW_L1 for top rates. Downstream votes per-rate
+ * corners (svs/svs_l1/turbo) for this block; nothing votes either rail
+ * in mainline, so do it here via the OPP framework, modeled on the
+ * venus CX handling. A DT without the domains/table is not fatal: we
+ * warn once and run as before (rails unvoted).
+ */
+static int camss_opp_init(struct camss *camss)
+{
+	struct device *dev = camss->dev;
+	struct dev_pm_domain_attach_data opp_data = {
+		.pd_names = camss_opp_pd_names,
+		.num_pd_names = ARRAY_SIZE(camss_opp_pd_names),
+		.pd_flags = PD_FLAG_DEV_LINK_ON | PD_FLAG_REQUIRED_OPP,
+	};
+	int ret;
+
+	if (!of_device_is_compatible(dev->of_node, "qcom,sm6225-camss"))
+		return 0;
+
+	ret = devm_pm_opp_set_clkname(dev, "vfe0");
+	if (ret)
+		return ret;
+
+	ret = devm_pm_domain_attach_list(dev, &opp_data, &camss->opp_pmdomain);
+	if (ret) {
+		if (ret == -ENODEV)
+			dev_warn(dev, "mx/cx power domains missing, rails will not be voted\n");
+		return ret == -ENODEV ? 0 : ret;
+	}
+
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret) {
+		if (ret == -ENODEV)
+			dev_warn(dev, "no OPP table, rails will not be voted\n");
+		else
+			dev_err(dev, "invalid OPP table in device tree\n");
+		return ret == -ENODEV ? 0 : ret;
+	}
+
+	camss->opp_ready = true;
+
+	return 0;
+}
+
 /*
  * camss_init_pm_clks - set up shared CAMSS clocks
  *
@@ -5465,6 +5717,10 @@ static int camss_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to configure power domains: %d\n", ret);
 		return ret;
 	}
+
+	ret = camss_opp_init(camss);
+	if (ret < 0)
+		goto err_genpd_cleanup;
 
 	ret = camss_init_subdevices(camss);
 	if (ret < 0)
@@ -5708,6 +5964,18 @@ static const struct camss_resources sm6150_resources = {
 	.vfe_num = ARRAY_SIZE(vfe_res_sm6150),
 };
 
+static const struct camss_resources sm6225_resources = {
+	.version = CAMSS_2290,
+	.csiphy_res = csiphy_res_sm6225,
+	.csid_res = csid_res_sm6225,
+	.vfe_res = vfe_res_sm6225,
+	.icc_res = icc_res_sm6225,
+	.icc_path_num = ARRAY_SIZE(icc_res_sm6225),
+	.csiphy_num = ARRAY_SIZE(csiphy_res_sm6225),
+	.csid_num = ARRAY_SIZE(csid_res_sm6225),
+	.vfe_num = ARRAY_SIZE(vfe_res_sm6225),
+};
+
 static const struct camss_resources sm6350_resources = {
 	.version = CAMSS_6350,
 	.pd_name = "top",
@@ -5819,6 +6087,7 @@ static const struct of_device_id camss_dt_match[] = {
 	{ .compatible = "qcom,sdm670-camss", .data = &sdm670_resources },
 	{ .compatible = "qcom,sdm845-camss", .data = &sdm845_resources },
 	{ .compatible = "qcom,sm6150-camss", .data = &sm6150_resources },
+	{ .compatible = "qcom,sm6225-camss", .data = &sm6225_resources },
 	{ .compatible = "qcom,sm6350-camss", .data = &sm6350_resources },
 	{ .compatible = "qcom,sm8250-camss", .data = &sm8250_resources },
 	{ .compatible = "qcom,sm8550-camss", .data = &sm8550_resources },
@@ -5843,10 +6112,14 @@ static int __maybe_unused camss_runtime_suspend(struct device *dev)
 	}
 
 #if IS_ENABLED(CONFIG_PM_CLK)
-	return pm_clk_suspend(dev);
-#else
-	return 0;
+	ret = pm_clk_suspend(dev);
+	if (ret)
+		return ret;
 #endif
+	if (camss->opp_ready)
+		return dev_pm_opp_set_rate(dev, 0);
+
+	return 0;
 }
 
 static int __maybe_unused camss_runtime_resume(struct device *dev)
@@ -5856,21 +6129,41 @@ static int __maybe_unused camss_runtime_resume(struct device *dev)
 	int i;
 	int ret;
 
+	/* Vote the SM6225 rails before enabling the camera clocks. */
+	if (camss->opp_ready) {
+		ret = dev_pm_opp_set_rate(dev, CAMSS_OPP_VOTE_HZ);
+		if (ret)
+			return ret;
+
+		usleep_range(1000, 2000);
+	}
+
 #if IS_ENABLED(CONFIG_PM_CLK)
 	ret = pm_clk_resume(dev);
 	if (ret)
-		return ret;
+		goto err_clocks;
 #endif
-
 	for (i = 0; i < camss->res->icc_path_num; i++) {
 		ret = icc_set_bw(camss->icc_path[i],
 				 icc_res[i].icc_bw_tbl.avg,
 				 icc_res[i].icc_bw_tbl.peak);
 		if (ret)
-			return ret;
+			goto err_bw;
 	}
 
 	return 0;
+
+err_bw:
+	while (--i >= 0)
+		icc_set_bw(camss->icc_path[i], 0, 0);
+#if IS_ENABLED(CONFIG_PM_CLK)
+err_clocks:
+	pm_clk_suspend(dev);
+#endif
+	if (camss->opp_ready)
+		dev_pm_opp_set_rate(dev, 0);
+
+	return ret;
 }
 
 static const struct dev_pm_ops camss_pm_ops = {
