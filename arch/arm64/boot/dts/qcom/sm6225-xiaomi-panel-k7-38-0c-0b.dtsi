@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+/* Panel selection is independent of the spes/spesn NFC variant. */
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "xiaomi,k7-38-0c-0b";
+		reset-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&pm6125_gpios 9 GPIO_ACTIVE_HIGH>;
+	};
+};

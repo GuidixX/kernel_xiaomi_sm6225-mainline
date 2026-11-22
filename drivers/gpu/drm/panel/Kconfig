@@ -1076,6 +1076,17 @@ config DRM_PANEL_SAMSUNG_S6E3FC_UNKNOWN
 	    Xiaomi Redmi Note 11
 	    Xiaomi Redmi Note 11 NFC
 
+config DRM_PANEL_SAMSUNG_S6E3FC_UNKNOWN_B
+	tristate "Samsung S6E3FC-based Xiaomi K7 38 0c 0b DSI panel"
+	depends on GPIOLIB
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y or M here to enable the Xiaomi K7 38 0c 0b
+	  Samsung S6E3FC-based 1080x2400 AMOLED panel used in
+	  the Redmi Note 11 and Redmi Note 11 NFC.
+
 config DRM_PANEL_SAMSUNG_S6E3HA2
 	tristate "Samsung S6E3HA2 DSI video mode panel"
 	depends on OF

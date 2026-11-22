@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+#include "sm6225-xiaomi-spes-sm5602.dts"
+#include "sm6225-xiaomi-panel-k7-38-0c-0b.dtsi"
