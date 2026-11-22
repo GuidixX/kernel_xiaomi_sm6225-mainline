@@ -1070,8 +1070,8 @@ config DRM_PANEL_SAMSUNG_S6E3FC_UNKNOWN
 	  Say Y or M here if you want to enable support for the
 	  Samsung S6E3FC-based Unknown MIPI DSI 1080x2400
 	  AMOLED 90Hz 6.43 inch panel.
-	  This panel is known as k7_38_0c_0a by Xiaomi and used
-	  in, at least, the following devices:
+	  These panels are known as k7_38_0c_0a and k7_38_0c_0b by Xiaomi
+	  and are used in, at least, the following devices:
 
 	    Xiaomi Redmi Note 11
 	    Xiaomi Redmi Note 11 NFC

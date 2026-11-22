@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2026 FIXME
+// Copyright (c) 2026 Guidix
+// Revision B commands: dsi-panel-k7-38-0c-0b-fhdp-video.dtsi.
 // Generated with linux-mdss-dsi-panel-driver-generator from vendor device tree:
 //   Copyright (c) 2013, The Linux Foundation. All rights reserved. (FIXME)
 
 #include <linux/backlight.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string.h>
 
 #include <drm/display/drm_dsc.h>
 #include <drm/display/drm_dsc_helper.h>
@@ -17,6 +22,10 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
+static char *panel_revision = "auto";
+module_param(panel_revision, charp, 0444);
+MODULE_PARM_DESC(panel_revision, "Panel revision: auto, a, or b");
+
 struct xiaomi_38_0c {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
@@ -24,6 +33,9 @@ struct xiaomi_38_0c {
 	struct regulator *supply;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *en_gpio;
+	struct gpio_desc *en_b_gpio;
+	bool panel_b;
+	bool revision_known;
 };
 
 static inline struct xiaomi_38_0c *to_xiaomi_38_0c(struct drm_panel *panel)
@@ -41,12 +53,10 @@ static void xiaomi_38_0c_reset(struct xiaomi_38_0c *ctx)
 	usleep_range(10000, 11000);
 }
 
-static int xiaomi_38_0c_on(struct xiaomi_38_0c *ctx)
+static int xiaomi_38_0c_on_a(struct xiaomi_38_0c *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
-	mipi_dsi_msleep(&dsi_ctx, 20);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf1, 0x5a, 0x5a, 0x5a, 0x5a);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x00, 0x2c, 0xe0, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x00, 0x03, 0x95, 0x07,
@@ -108,6 +118,227 @@ static int xiaomi_38_0c_on(struct xiaomi_38_0c *ctx)
 	return dsi_ctx.accum_err;
 }
 
+static int xiaomi_38_0c_on_b(struct xiaomi_38_0c *ctx)
+{
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
+
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb2, 0x01, 0x31);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe1, 0x8b);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xed, 0x00, 0x01);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x00, 0x06, 0xf4);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf4, 0x1f);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x00, 0x11, 0xfe);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfe, 0x00);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x9d, 0x01);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x9e, 0x11, 0x00, 0x00, 0x89,
+				     0x30, 0x80, 0x09, 0x60, 0x04, 0x38, 0x00,
+				     0x28, 0x02, 0x1c, 0x02, 0x1c, 0x02, 0x00,
+				     0x02, 0x0e, 0x00, 0x20, 0x03, 0xdd, 0x00,
+				     0x07, 0x00, 0x0c, 0x02, 0x77, 0x02, 0x8b,
+				     0x18, 0x00, 0x10, 0xf0, 0x03, 0x0c, 0x20,
+				     0x00, 0x06, 0x0b, 0x0b, 0x33, 0x0e, 0x1c,
+				     0x2a, 0x38, 0x46, 0x54, 0x62, 0x69, 0x70,
+				     0x77, 0x79, 0x7b, 0x7d, 0x7e, 0x01, 0x02,
+				     0x01, 0x00, 0x09, 0x40, 0x09, 0xbe, 0x19,
+				     0xfc, 0x19, 0xfa, 0x19, 0xf8, 0x1a, 0x38,
+				     0x1a, 0x78, 0x1a, 0xb6, 0x2a, 0xf6, 0x2b,
+				     0x34, 0x2b, 0x74, 0x3b, 0x74, 0x6b, 0xf4,
+				     0x00);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x60, 0x21);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf7, 0x0b);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x00, 0x0d, 0xb2);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb2, 0x20);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x00, 0x0c, 0xb2);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb2, 0x30);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x53, 0x28);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf7, 0x0b);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xcd, 0x29, 0x00, 0x08);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfe, 0xb0);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfe, 0x30);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf7, 0x0b);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_msleep(&dsi_ctx, 100);
+
+	return dsi_ctx.accum_err;
+}
+
+/* Avoid an ID read on an unpowered panel when the bootloader identifies it. */
+static void xiaomi_38_0c_select_boot_revision(struct xiaomi_38_0c *ctx)
+{
+	static const char prefix[] =
+		"msm_drm.dsi_display0=qcom,mdss_dsi_panel_k7_38_0c_0";
+	const char *bootargs, *word, *name, *end;
+	bool panel_b;
+
+	if (of_property_read_string(of_chosen, "bootargs", &bootargs))
+		return;
+
+	for (word = bootargs; *word;) {
+		while (isspace(*word))
+			word++;
+		if (str_has_prefix(word, prefix)) {
+			name = word + sizeof(prefix) - 1;
+			if (str_has_prefix(name, "a_fhdp_video"))
+				panel_b = false;
+			else if (str_has_prefix(name, "b_fhdp_video"))
+				panel_b = true;
+			else
+				return;
+
+			end = name + sizeof("a_fhdp_video") - 1;
+			if (*end && *end != ':' && !isspace(*end))
+				return;
+			ctx->panel_b = panel_b;
+			ctx->revision_known = true;
+			dev_info(&ctx->dsi->dev,
+				 "Using panel revision %s from bootloader\n",
+				 panel_b ? "B" : "A");
+			return;
+		}
+		while (*word && !isspace(*word))
+			word++;
+	}
+}
+
+/* ID1/ID2/ID3 identify Xiaomi's 38 0c 0a and 38 0c 0b revisions. */
+static int xiaomi_38_0c_read_revision(struct xiaomi_38_0c *ctx)
+{
+	struct mipi_dsi_device *dsi = ctx->dsi;
+	static const u8 commands[] = { 0xda, 0xdb, 0xdc };
+	u8 id[ARRAY_SIZE(commands)];
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(commands); i++) {
+		ret = mipi_dsi_dcs_read(dsi, commands[i], &id[i], 1);
+		if (ret != 1)
+			return ret < 0 ? ret : -EIO;
+	}
+
+	if (id[0] != 0x38 || id[1] != 0x0c ||
+	    (id[2] != 0x0a && id[2] != 0x0b))
+		return -ENODEV;
+
+	ctx->panel_b = id[2] == 0x0b;
+	ctx->revision_known = true;
+	dev_dbg(&dsi->dev, "Panel revision %s (ID %02x %02x %02x)\n",
+		ctx->panel_b ? "B" : "A", id[0], id[1], id[2]);
+	return 0;
+}
+
+static void xiaomi_38_0c_power_off(struct xiaomi_38_0c *ctx)
+{
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+	regulator_disable(ctx->supply);
+	gpiod_set_value_cansleep(ctx->en_gpio, 0);
+	gpiod_set_value_cansleep(ctx->en_b_gpio, 0);
+}
+
+static int xiaomi_38_0c_power_on(struct xiaomi_38_0c *ctx, bool panel_b)
+{
+	struct gpio_desc *enable = panel_b && ctx->en_b_gpio ?
+				  ctx->en_b_gpio : ctx->en_gpio;
+	int ret;
+
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+	gpiod_set_value_cansleep(ctx->en_gpio, 0);
+	gpiod_set_value_cansleep(ctx->en_b_gpio, 0);
+	if (enable) {
+		gpiod_set_value_cansleep(enable, 1);
+		usleep_range(10000, 11000);
+	}
+
+	ret = regulator_enable(ctx->supply);
+	if (ret < 0) {
+		gpiod_set_value_cansleep(enable, 0);
+		return ret;
+	}
+
+	xiaomi_38_0c_reset(ctx);
+	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
+	if (ret < 0) {
+		xiaomi_38_0c_power_off(ctx);
+		return ret;
+	}
+	msleep(80);
+	return 0;
+}
+
+static int xiaomi_38_0c_power_up(struct xiaomi_38_0c *ctx)
+{
+	bool power_b;
+	int ret;
+
+	if (!strcmp(panel_revision, "a") || !strcmp(panel_revision, "b")) {
+		ctx->panel_b = !strcmp(panel_revision, "b");
+		ctx->revision_known = true;
+	} else if (!ctx->revision_known) {
+		xiaomi_38_0c_select_boot_revision(ctx);
+	}
+	power_b = ctx->panel_b;
+
+	ret = xiaomi_38_0c_power_on(ctx, power_b);
+	if (ctx->revision_known)
+		return ret;
+
+	if (!ret) {
+		ret = xiaomi_38_0c_read_revision(ctx);
+		if (!ret)
+			goto selected;
+		if (!ctx->en_b_gpio)
+			goto legacy;
+		xiaomi_38_0c_power_off(ctx);
+	} else if (!ctx->en_b_gpio) {
+		return ret;
+	}
+
+	/* An unpowered B panel cannot report its ID on the A enable line. */
+	power_b = true;
+	ret = xiaomi_38_0c_power_on(ctx, power_b);
+	if (!ret) {
+		ret = xiaomi_38_0c_read_revision(ctx);
+		if (!ret)
+			goto selected;
+		xiaomi_38_0c_power_off(ctx);
+	}
+
+	/* Keep the original A power path if neither attempt identifies a panel. */
+	ctx->panel_b = false;
+	ret = xiaomi_38_0c_power_on(ctx, false);
+	if (ret < 0)
+		return ret;
+legacy:
+	dev_warn(&ctx->dsi->dev,
+		 "Cannot identify panel, using revision A initialization\n");
+	return 0;
+
+selected:
+	if (ctx->en_b_gpio && ctx->panel_b != power_b) {
+		xiaomi_38_0c_power_off(ctx);
+		return xiaomi_38_0c_power_on(ctx, ctx->panel_b);
+	}
+	return 0;
+}
+
 static int xiaomi_38_0c_off(struct xiaomi_38_0c *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
@@ -127,25 +358,16 @@ static int xiaomi_38_0c_prepare(struct drm_panel *panel)
 	struct drm_dsc_picture_parameter_set pps;
 	int ret;
 
-	if (ctx->en_gpio) {
-		gpiod_set_value_cansleep(ctx->en_gpio, 1);
-		usleep_range(10000, 11000);
-	}
-
-	ret = regulator_enable(ctx->supply);
+	ret = xiaomi_38_0c_power_up(ctx);
 	if (ret < 0) {
-		dev_err(dev, "Failed to enable regulator: %d\n", ret);
+		dev_err(dev, "Failed to power up panel: %d\n", ret);
 		return ret;
 	}
 
-	xiaomi_38_0c_reset(ctx);
-
-	ret = xiaomi_38_0c_on(ctx);
+	ret = ctx->panel_b ? xiaomi_38_0c_on_b(ctx) : xiaomi_38_0c_on_a(ctx);
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
-		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-		regulator_disable(ctx->supply);
-		return ret;
+		goto power_off;
 	}
 
 	drm_dsc_pps_payload_pack(&pps, &ctx->dsc);
@@ -153,18 +375,29 @@ static int xiaomi_38_0c_prepare(struct drm_panel *panel)
 	ret = mipi_dsi_picture_parameter_set(ctx->dsi, &pps);
 	if (ret < 0) {
 		dev_err(panel->dev, "failed to transmit PPS: %d\n", ret);
-		return ret;
+		goto power_off;
 	}
 
 	ret = mipi_dsi_compression_mode(ctx->dsi, true);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable compression mode: %d\n", ret);
-		return ret;
+		goto power_off;
 	}
 
-	msleep(28); /* TODO: Is this panel-dependent? */
+	if (ctx->panel_b) {
+		ret = mipi_dsi_dcs_set_display_on(ctx->dsi);
+		if (ret < 0)
+			goto power_off;
+		msleep(30);
+	} else {
+		msleep(28);
+	}
 
 	return 0;
+
+power_off:
+	xiaomi_38_0c_power_off(ctx);
+	return ret;
 }
 
 static int xiaomi_38_0c_unprepare(struct drm_panel *panel)
@@ -177,8 +410,7 @@ static int xiaomi_38_0c_unprepare(struct drm_panel *panel)
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
 
-	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-	regulator_disable(ctx->supply);
+	xiaomi_38_0c_power_off(ctx);
 
 	return 0;
 }
@@ -214,18 +446,16 @@ static const struct drm_panel_funcs xiaomi_38_0c_panel_funcs = {
 static int xiaomi_38_0c_bl_update_status(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	unsigned long mode_flags = dsi->mode_flags;
 	u16 brightness = backlight_get_brightness(bl);
 	int ret;
 
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
 	ret = mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
-	if (ret < 0)
-		return ret;
+	dsi->mode_flags = mode_flags;
 
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
-
-	return 0;
+	return ret;
 }
 
 // TODO: Check if /sys/class/backlight/.../actual_brightness actually returns
@@ -233,16 +463,19 @@ static int xiaomi_38_0c_bl_update_status(struct backlight_device *bl)
 static int xiaomi_38_0c_bl_get_brightness(struct backlight_device *bl)
 {
 	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	unsigned long mode_flags = dsi->mode_flags;
 	u16 brightness;
 	int ret;
+
+	if (backlight_is_blank(bl))
+		return 0;
 
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
 	ret = mipi_dsi_dcs_get_display_brightness_large(dsi, &brightness);
+	dsi->mode_flags = mode_flags;
 	if (ret < 0)
 		return ret;
-
-	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
 	return brightness;
 }
@@ -272,6 +505,11 @@ static int xiaomi_38_0c_probe(struct mipi_dsi_device *dsi)
 	struct xiaomi_38_0c *ctx;
 	int ret;
 
+	if (strcmp(panel_revision, "auto") && strcmp(panel_revision, "a") &&
+	    strcmp(panel_revision, "b"))
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid panel_revision; use auto, a, or b\n");
+
 	ctx = devm_drm_panel_alloc(dev, struct xiaomi_38_0c, panel,
 				   &xiaomi_38_0c_panel_funcs,
 				   DRM_MODE_CONNECTOR_DSI);
@@ -292,6 +530,11 @@ static int xiaomi_38_0c_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->en_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->en_gpio),
 				     "Failed to get enable-gpios\n");
+
+	ctx->en_b_gpio = devm_gpiod_get_optional(dev, "enable-b", GPIOD_OUT_LOW);
+	if (IS_ERR(ctx->en_b_gpio))
+		return dev_err_probe(dev, PTR_ERR(ctx->en_b_gpio),
+				     "Failed to get enable-b-gpios\n");
 
 	ctx->dsi = dsi;
 	mipi_dsi_set_drvdata(dsi, ctx);
@@ -369,5 +612,5 @@ static struct mipi_dsi_driver xiaomi_38_0c_driver = {
 module_mipi_dsi_driver(xiaomi_38_0c_driver);
 
 MODULE_AUTHOR("SCOS100 <hsc100zz@gmail.com>");
-MODULE_DESCRIPTION("DRM driver for 38 0c video mode fhdp dsi panel");
+MODULE_DESCRIPTION("DRM driver for Xiaomi 38 0c AMOLED panels (A/B)");
 MODULE_LICENSE("GPL");
